@@ -1,0 +1,66 @@
+user www-data;
+pid /run/nginx.pid;
+{{ with $wp := (env "WORKER_PROCESSES") }}
+worker_processes {{ $wp }};{{ else }} worker_processes 1; {{ end }}
+
+events {
+{{ with $wc := (env "WORKER_CONNECTIONS") }}
+    worker_connections {{ $wc }};{{ else }} worker_connections 1024;{{ end }}
+}
+
+
+http {
+    include  /etc/nginx/mime.types;
+
+    gzip              on;
+    gzip_http_version 1.0;
+    gzip_proxied      any;
+    gzip_min_length   500;
+    gzip_disable      "MSIE [1-6]\.";
+    gzip_types        text/plain text/xml text/css
+                      text/comma-separated-values
+                      text/javascript
+                      application/x-javascript
+                      application/atom+xml;
+
+    client_max_body_size 20m;
+    keepalive_timeout 30;
+    sendfile on;
+{{with $webServer := env "WEB_SERVER_ID"}}{{ with $wsConfig := key (printf "web-servers/%s" $webServer) | parseJSON }}
+{{ range $optName, $optVal := $wsConfig.Options }}{{ $optName }} {{ $optVal }};{{ end }}
+{{ range $serverSpec := $wsConfig.Servers }}{{ range $upstreamSpec := $serverSpec.Services }}
+    upstream {{ $upstreamSpec.Name }} {
+       server 127.0.0.1:1000 down;{{ range $service := service (printf "%s.%s" $upstreamSpec.Tag $upstreamSpec.Name)}}
+       server {{ $service.Address }}:{{ $service.Port }};{{end}}
+    } {{ end }}
+
+    server {
+        {{ if $serverSpec.Listen }}listen {{ $serverSpec.Listen }};{{ else }}listen 80;{{ end }}
+        {{ if $serverSpec.Name }}server_name {{ $serverSpec.Name }};{{ end }}
+        {{ if $serverSpec.Root }}root {{ $serverSpec.Root }};{{ else }}root /var/www/default/htdocs;{{ end }}
+        {{ range $optName, $optVal := $serverSpec.Options }}
+        {{ $optName }} {{ $optVal }};{{ end }}
+        {{ range $upstreamSpec := $serverSpec.Services }}
+        location @{{ $upstreamSpec.Name }} {
+            proxy_pass         http://{{ $upstreamSpec.Name }};
+            proxy_redirect     off;
+            proxy_set_header   Host $host;
+            proxy_set_header   X-Real-IP $remote_addr;
+            proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Host $server_name;
+            {{ range $optName, $optVal := $upstreamSpec.Options }}{{ $optName }} {{ $optVal }};{{ end }}
+        }{{ end }}
+        location / {
+            {{ range $upstreamSpec := $serverSpec.Services }}{{ if $upstreamSpec.Location }} location {{ $upstreamSpec.Location }} {
+                try_files @{{ $upstreamSpec.Name }}
+            }{{ else }}try_files $uri @{{ $upstreamSpec.Name }};
+            {{ end }}{{ end }}
+        }
+    }{{ end }}{{end}}{{end}}
+    server {
+        listen 80;
+        server_name _;
+        server_name_in_redirect off;
+        root  /var/www/default/htdocs;
+    }
+}
