@@ -58,7 +58,7 @@ http {
         }
     }{{ end }}{{end}}{{end}}
     server {
-        listen 80;
+        listen 80 default_server;
         server_name _;
         server_name_in_redirect off;
         root  /var/www/default/htdocs;
