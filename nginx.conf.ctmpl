@@ -28,11 +28,11 @@ http {
     sendfile on;
 {{with $webServer := env "WEB_SERVER_ID"}}{{ with $wsConfig := key (printf "web-servers/%s" $webServer) | parseJSON }}
 {{ range $optName, $optVal := $wsConfig.Options }}{{ $optName }} {{ $optVal }};{{ end }}
-{{ range $serverSpec := $wsConfig.Servers }}{{ range $upstreamSpec := $serverSpec.Services }}
-    upstream {{ $upstreamSpec.Name }} {
+{{ range $serverIndex, $serverSpec := $wsConfig.Servers }}{{ range $upstreamSpec := $serverSpec.Services }}
+{{with $upstreamName := (printf "%s-%d" $upstreamSpec.Name $serverIndex)}}upstream {{ $upstreamName }} {
        server 127.0.0.1:1000 down;{{ range $service := service (printf "%s.%s" $upstreamSpec.Tag $upstreamSpec.Name)}}
        server {{ $service.Address }}:{{ $service.Port }};{{end}}
-    } {{ end }}
+    }
 
     server {
         {{ if $serverSpec.Listen }}listen {{ $serverSpec.Listen }};{{ else }}listen 80;{{ end }}
@@ -41,8 +41,8 @@ http {
         {{ range $optName, $optVal := $serverSpec.Options }}
         {{ $optName }} {{ $optVal }};{{ end }}
         {{ range $upstreamSpec := $serverSpec.Services }}
-        location @{{ $upstreamSpec.Name }} {
-            proxy_pass         http://{{ $upstreamSpec.Name }};
+        location @{{ $upstreamName }} {
+            proxy_pass         http://{{ $upstreamName }};
             proxy_redirect     off;
             proxy_set_header   Host $host;
             proxy_set_header   X-Real-IP $remote_addr;
@@ -52,11 +52,11 @@ http {
         }{{ end }}
         location / {
             {{ range $upstreamSpec := $serverSpec.Services }}{{ if $upstreamSpec.Location }} location {{ $upstreamSpec.Location }} {
-                try_files @{{ $upstreamSpec.Name }}
-            }{{ else }}try_files $uri @{{ $upstreamSpec.Name }};
+                try_files @{{ $upstreamName }}
+            }{{ else }}try_files $uri @{{ $upstreamName }};
             {{ end }}{{ end }}
         }
-    }{{ end }}{{end}}{{end}}
+    }{{ end }}{{end}}{{end}}{{end}}{{end}}
     server {
         listen 80 default_server;
         server_name _;
