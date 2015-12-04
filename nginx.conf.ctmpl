@@ -51,10 +51,7 @@ http {
             {{ range $optName, $optVal := $upstreamSpec.Options }}{{ $optName }} {{ $optVal }};{{ end }}
         }{{ end }}{{end}}
         location / {
-            {{ range $upstreamSpec := $serverSpec.Services }}{{with $upstreamName := (printf "%s-%d" $upstreamSpec.Name $serverIndex)}}
-            {{ if $upstreamSpec.Location }} location {{ $upstreamSpec.Location }} {
-                try_files @{{ $upstreamName }}
-            }{{ else }}try_files $uri @{{ $upstreamName }}; {{ end }}{{ end }}{{end }}
+            try_files $uri{{ range $upstreamSpec := $serverSpec.Services }}{{with $upstreamName := (printf "%s-%d" $upstreamSpec.Name $serverIndex)}} @{{ $upstreamName }}{{ end }}{{end }};
         }
     }{{ end }}{{end}}{{end}}{{end}}
     server {
