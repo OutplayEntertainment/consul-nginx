@@ -41,7 +41,7 @@ http {
         {{ range $optName, $optVal := $serverSpec.Options }}
         {{ $optName }} {{ $optVal }};{{ end }}
         {{ range $upstreamSpec := $serverSpec.Services }}{{with $upstreamName := (printf "%s-%d" $upstreamSpec.Name $serverIndex)}}
-        location @{{ $upstreamName }} {
+        location {{if $upstreamSpec.Location }}{{ $upstreamSpec.Location }}{{ else }}@{{ $upstreamName }}{{ end }} {
             proxy_pass         http://{{ $upstreamName }};
             proxy_redirect     off;
             proxy_set_header   Host $host;
@@ -50,9 +50,11 @@ http {
             proxy_set_header   X-Forwarded-Host $server_name;
             {{ range $optName, $optVal := $upstreamSpec.Options }}{{ $optName }} {{ $optVal }};{{ end }}
         }{{ end }}{{end}}
+
         location / {
-            try_files $uri{{ range $upstreamSpec := $serverSpec.Services }}{{with $upstreamName := (printf "%s-%d" $upstreamSpec.Name $serverIndex)}} @{{ $upstreamName }}{{ end }}{{end }};
+            try_files $uri {{ range $upstreamSpec := $serverSpec.Services }}{{with $upstreamName := (printf "%s-%d" $upstreamSpec.Name $serverIndex)}}{{if not $upstreamSpec.Location}}@{{$upstreamName}}{{end}}{{end}}{{end}};
         }
+
     }{{ end }}{{end}}{{end}}
     server {
         listen 80 default_server;
