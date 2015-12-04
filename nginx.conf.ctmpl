@@ -32,7 +32,7 @@ http {
 {{with $upstreamName := (printf "%s-%d" $upstreamSpec.Name $serverIndex)}}upstream {{ $upstreamName }} {
        server 127.0.0.1:1000 down;{{ range $service := service (printf "%s.%s" $upstreamSpec.Tag $upstreamSpec.Name)}}
        server {{ $service.Address }}:{{ $service.Port }};{{end}}{{end}}
-    }
+    }{{end}}
 
     server {
         {{ if $serverSpec.Listen }}listen {{ $serverSpec.Listen }};{{ else }}listen 80;{{ end }}
@@ -53,7 +53,7 @@ http {
         location / {
             try_files $uri{{ range $upstreamSpec := $serverSpec.Services }}{{with $upstreamName := (printf "%s-%d" $upstreamSpec.Name $serverIndex)}} @{{ $upstreamName }}{{ end }}{{end }};
         }
-    }{{ end }}{{end}}{{end}}{{end}}
+    }{{ end }}{{end}}{{end}}
     server {
         listen 80 default_server;
         server_name _;
