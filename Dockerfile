@@ -8,8 +8,8 @@ RUN apt-get update && \
     chown -R www-data:www-data /var/lib/nginx
 
 RUN rm -f /etc/nginx/sites-available/default
+# setup error via config
 RUN ln -sf /dev/stdout /var/log/nginx/access.log
-RUN ln -sf /dev/stderr /var/log/nginx/error.log
 RUN mkdir -p /var/www/default/htdocs
 
 # Install consul-template
